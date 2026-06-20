@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include "renderer/D3D12Device.h"
 
 class FrameTimer
 {
@@ -44,7 +45,6 @@ public:
 
     void Render()
     {
-        
     }
 
     void Resize(uint32_t width, uint32_t height)
@@ -84,6 +84,25 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    D3D12Device d3d12Device;
+
+    if (!d3d12Device.Initialize(false))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize D3D12 device.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
+    MessageBoxW(
+        window.GetHwnd(),
+        d3d12Device.GetAdapterName().c_str(),
+        L"Selected GPU",
+        MB_OK);
+
     StubRenderer renderer;
     renderer.Initialize(
         window.GetHwnd(),
@@ -119,6 +138,7 @@ int WINAPI wWinMain(
         }
     }
 
+    d3d12Device.Shutdown();
     window.Destroy();
 
     return 0;

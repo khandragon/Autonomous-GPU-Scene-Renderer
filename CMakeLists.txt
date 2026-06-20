@@ -11,6 +11,9 @@ add_executable(AutonomousGpuSceneRenderer WIN32
 
     src/platform/Win32Window.h
     src/platform/Win32Window.cpp
+
+    src/renderer/D3D12Device.h
+    src/renderer/D3D12Device.cpp
 )
 
 target_include_directories(AutonomousGpuSceneRenderer PRIVATE
@@ -26,6 +29,9 @@ target_compile_definitions(AutonomousGpuSceneRenderer PRIVATE
 
 target_link_libraries(AutonomousGpuSceneRenderer PRIVATE
     user32
+    d3d12
+    dxgi
+    dxguid
 )
 
 if(MSVC)

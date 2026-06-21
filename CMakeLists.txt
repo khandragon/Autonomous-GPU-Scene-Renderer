@@ -6,17 +6,32 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(D3D12_AGILITY_SDK_DIR
+    "${CMAKE_SOURCE_DIR}/external/agility-sdk/Microsoft.Direct3D.D3D12.1.619.3"
+)
+
+set(D3D12_AGILITY_SDK_INCLUDE_DIR
+    "${D3D12_AGILITY_SDK_DIR}/build/native/include"
+)
+
+set(D3D12_AGILITY_SDK_BIN_DIR
+    "${D3D12_AGILITY_SDK_DIR}/build/native/bin/x64"
+)
+
 add_executable(AutonomousGpuSceneRenderer WIN32
     src/main.cpp
 
     src/platform/Win32Window.h
     src/platform/Win32Window.cpp
 
+    src/renderer/RendererCapabilities.h
+    src/renderer/D3D12AgilitySDK.cpp
     src/renderer/D3D12Device.h
     src/renderer/D3D12Device.cpp
 )
 
 target_include_directories(AutonomousGpuSceneRenderer PRIVATE
+    ${D3D12_AGILITY_SDK_INCLUDE_DIR}
     src
 )
 
@@ -32,6 +47,23 @@ target_link_libraries(AutonomousGpuSceneRenderer PRIVATE
     d3d12
     dxgi
     dxguid
+)
+
+add_custom_command(TARGET AutonomousGpuSceneRenderer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+    "$<TARGET_FILE_DIR:AutonomousGpuSceneRenderer>/D3D12"
+)
+
+add_custom_command(TARGET AutonomousGpuSceneRenderer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${D3D12_AGILITY_SDK_BIN_DIR}/D3D12Core.dll"
+    "$<TARGET_FILE_DIR:AutonomousGpuSceneRenderer>/D3D12/D3D12Core.dll"
+)
+
+add_custom_command(TARGET AutonomousGpuSceneRenderer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${D3D12_AGILITY_SDK_BIN_DIR}/d3d12SDKLayers.dll"
+    "$<TARGET_FILE_DIR:AutonomousGpuSceneRenderer>/D3D12/d3d12SDKLayers.dll"
 )
 
 if(MSVC)

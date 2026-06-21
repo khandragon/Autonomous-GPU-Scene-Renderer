@@ -100,10 +100,19 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    const RendererCapabilities &caps = d3d12Device.GetCapabilities();
+
+    std::wstring capabilityMessage =
+        L"Selected GPU: " + d3d12Device.GetAdapterName() + L"\n\n" +
+        L"ExecuteIndirect: " + std::wstring(caps.SupportsExecuteIndirect ? L"Yes" : L"No") + L"\n" +
+        L"Timestamp Queries: " + std::wstring(caps.SupportsTimestampQueries ? L"Yes" : L"No") + L"\n" +
+        L"Mesh Shaders: " + std::wstring(caps.SupportsMeshShaders ? L"Yes" : L"No") + L"\n" +
+        L"Work Graphs: " + std::wstring(caps.SupportsWorkGraphs ? L"Yes" : L"No");
+
     MessageBoxW(
         window.GetHwnd(),
-        d3d12Device.GetAdapterName().c_str(),
-        L"Selected GPU",
+        capabilityMessage.c_str(),
+        L"D3D12 Capabilities",
         MB_OK);
 
     StubRenderer renderer;

@@ -54,3 +54,6 @@ ipch/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Downloaded third-party SDKs
+external/agility-sdk/

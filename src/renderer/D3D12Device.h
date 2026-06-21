@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <string>
 
+#include "renderer/RendererCapabilities.h"
+
 class D3D12Device
 {
 public:
@@ -20,6 +22,7 @@ public:
     IDXGIAdapter1 *GetAdapter() const;
 
     const std::wstring &GetAdapterName() const;
+    const RendererCapabilities &GetCapabilities() const;
 
 private:
     bool EnableDebugLayer(bool enableGpuValidation);
@@ -27,6 +30,7 @@ private:
     bool ChooseAdapter();
     bool CreateDevice();
     void SetupInfoQueue();
+    void QueryCapabilities();
 
 private:
     Microsoft::WRL::ComPtr<IDXGIFactory6> m_factory;
@@ -34,4 +38,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Device> m_device;
 
     std::wstring m_adapterName;
+    RendererCapabilities m_capabilities;
 };

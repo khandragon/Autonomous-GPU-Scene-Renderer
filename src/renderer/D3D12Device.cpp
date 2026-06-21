@@ -58,6 +58,8 @@ bool D3D12Device::Initialize(bool enableGpuValidation)
         return false;
     }
 
+    QueryCapabilities();
+
 #if defined(_DEBUG)
     // Setup the info queue to capture debug messages in debug builds. In release builds, we skip this step since the debug layer is not enabled.
     SetupInfoQueue();
@@ -103,6 +105,11 @@ IDXGIAdapter1 *D3D12Device::GetAdapter() const
 const std::wstring &D3D12Device::GetAdapterName() const
 {
     return m_adapterName;
+}
+
+const RendererCapabilities &D3D12Device::GetCapabilities() const
+{
+    return m_capabilities;
 }
 
 // Enable the debug layer and gpu validation so that we can catch errors and warnings.
@@ -254,4 +261,27 @@ void D3D12Device::SetupInfoQueue()
     filter.DenyList.pIDList = hiddenMessages;
 
     infoQueue->AddStorageFilterEntries(&filter);
+}
+
+// Go through device capabilities
+void D3D12Device::QueryCapabilities()
+{
+    m_capabilities = {};
+
+    m_capabilities.SupportsExecuteIndirect = true;
+
+    m_capabilities.SupportsTimestampQueries = true;
+
+    D3D12_FEATURE_DATA_D3D12_OPTIONS7 options7 = {};
+
+    if (SUCCEEDED(m_device->CheckFeatureSupport(
+            D3D12_FEATURE_D3D12_OPTIONS7,
+            &options7,
+            sizeof(options7))))
+    {
+        m_capabilities.SupportsMeshShaders =
+            options7.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+    }
+
+    m_capabilities.SupportsWorkGraphs = false;
 }

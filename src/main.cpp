@@ -6,6 +6,7 @@
 #include <cstdint>
 #include "renderer/D3D12Device.h"
 
+// FrameTimer is a simple utility class to measure the time between frames.
 class FrameTimer
 {
 public:
@@ -24,10 +25,12 @@ public:
     }
 
 private:
+    // Using steady_clock for frame timing to ensure consistent time intervals.
     using Clock = std::chrono::steady_clock;
     Clock::time_point m_previousTime;
 };
 
+// StubRenderer is a placeholder renderer that will be replaced with the actual renderer implementation later. It currently does nothing but can be used to test the application loop and window resizing.
 class StubRenderer
 {
 public:

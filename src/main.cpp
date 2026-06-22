@@ -1,10 +1,11 @@
 #include "platform/Win32Window.h"
+#include "renderer/D3D12Device.h"
+#include "renderer/CommandContext.h"
 
 #include <Windows.h>
 
 #include <chrono>
 #include <cstdint>
-#include "renderer/D3D12Device.h"
 
 // FrameTimer is a simple utility class to measure the time between frames.
 class FrameTimer
@@ -100,6 +101,19 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    CommandContext commandContext;
+
+    if (!commandContext.Initialize(d3d12Device.GetDevice()))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize command context.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
     const RendererCapabilities &caps = d3d12Device.GetCapabilities();
 
     std::wstring capabilityMessage =
@@ -146,6 +160,13 @@ int WINAPI wWinMain(
             }
 
             renderer.Update(dt);
+
+            commandContext.BeginFrame();
+
+            // Empty command list for now.
+
+            commandContext.EndFrame();
+
             renderer.Render();
         }
     }

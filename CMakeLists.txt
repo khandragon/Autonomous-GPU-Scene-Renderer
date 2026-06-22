@@ -24,10 +24,12 @@ add_executable(AutonomousGpuSceneRenderer WIN32
     src/platform/Win32Window.h
     src/platform/Win32Window.cpp
 
-    src/renderer/RendererCapabilities.h
     src/renderer/D3D12AgilitySDK.cpp
     src/renderer/D3D12Device.h
     src/renderer/D3D12Device.cpp
+    src/renderer/RendererCapabilities.h
+    src/renderer/CommandContext.h
+    src/renderer/CommandContext.cpp
 )
 
 target_include_directories(AutonomousGpuSceneRenderer PRIVATE

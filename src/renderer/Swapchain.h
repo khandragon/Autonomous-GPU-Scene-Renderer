@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderer/CommandContext.h"
+#include "renderer/DescriptorAllocator.h"
 
 #include <Windows.h>
 #include <wrl/client.h>
@@ -22,6 +23,7 @@ public:
         IDXGIFactory6 *factory,
         ID3D12Device *device,
         ID3D12CommandQueue *graphicsQueue,
+        DescriptorAllocator *rtvAllocator,
         uint32_t width,
         uint32_t height);
 
@@ -49,19 +51,17 @@ private:
         uint32_t width,
         uint32_t height);
 
-    bool CreateRtvHeap(ID3D12Device *device);
+    bool AllocateRtvHandles();
     bool CreateRenderTargetViews(ID3D12Device *device);
-
     void ReleaseBackBuffers();
 
 private:
     Microsoft::WRL::ComPtr<IDXGISwapChain3> m_swapchain;
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 
     std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, CommandContext::FrameCount> m_backBuffers = {};
-    std::array<D3D12_CPU_DESCRIPTOR_HANDLE, CommandContext::FrameCount> m_rtvHandles = {};
+    std::array<DescriptorHandle, CommandContext::FrameCount> m_rtvHandles = {};
+    DescriptorAllocator *m_rtvAllocator = nullptr;
 
-    uint32_t m_rtvDescriptorSize = 0;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
 };

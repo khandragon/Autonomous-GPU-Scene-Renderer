@@ -20,10 +20,11 @@ bool Swapchain::Initialize(
     IDXGIFactory6 *factory,
     ID3D12Device *device,
     ID3D12CommandQueue *graphicsQueue,
+    DescriptorAllocator *rtvAllocator,
     uint32_t width,
     uint32_t height)
 {
-    if (!hwnd || !factory || !device || !graphicsQueue)
+    if (!hwnd || !factory || !device || !graphicsQueue || !rtvAllocator)
     {
         return false;
     }
@@ -35,6 +36,7 @@ bool Swapchain::Initialize(
 
     m_width = width;
     m_height = height;
+    m_rtvAllocator = rtvAllocator;
 
     try
     {
@@ -43,7 +45,7 @@ bool Swapchain::Initialize(
             return false;
         }
 
-        if (!CreateRtvHeap(device))
+        if (!AllocateRtvHandles())
         {
             return false;
         }
@@ -67,10 +69,14 @@ void Swapchain::Shutdown()
 {
     ReleaseBackBuffers();
 
-    m_rtvHeap.Reset();
     m_swapchain.Reset();
+    m_rtvAllocator = nullptr;
 
-    m_rtvDescriptorSize = 0;
+    for (auto &handle : m_rtvHandles)
+    {
+        handle = {};
+    }
+
     m_width = 0;
     m_height = 0;
 }
@@ -130,7 +136,7 @@ ID3D12Resource *Swapchain::GetCurrentBackBuffer() const
 //
 D3D12_CPU_DESCRIPTOR_HANDLE Swapchain::GetCurrentBackBufferRtv() const
 {
-    return m_rtvHandles[GetCurrentBackBufferIndex()];
+    return m_rtvHandles[GetCurrentBackBufferIndex()].Cpu;
 }
 
 //
@@ -192,26 +198,24 @@ bool Swapchain::CreateSwapchain(
     return true;
 }
 
-//
-bool Swapchain::CreateRtvHeap(ID3D12Device *device)
+bool Swapchain::AllocateRtvHandles()
 {
-    //
-    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-    rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDesc.NumDescriptors = CommandContext::FrameCount;
-    rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    rtvHeapDesc.NodeMask = 0;
+    if (!m_rtvAllocator)
+    {
+        return false;
+    }
 
-    //
-    ThrowIfFailed(device->CreateDescriptorHeap(
-        &rtvHeapDesc,
-        IID_PPV_ARGS(&m_rtvHeap)));
-
-    m_rtvHeap->SetName(L"Swapchain RTV Descriptor Heap");
-
-    //
-    m_rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    try
+    {
+        for (uint32_t i = 0; i < CommandContext::FrameCount; ++i)
+        {
+            m_rtvHandles[i] = m_rtvAllocator->Allocate();
+        }
+    }
+    catch (...)
+    {
+        return false;
+    }
 
     return true;
 }
@@ -219,11 +223,6 @@ bool Swapchain::CreateRtvHeap(ID3D12Device *device)
 // writes an RTV descriptor into a CPU descriptor handle.
 bool Swapchain::CreateRenderTargetViews(ID3D12Device *device)
 {
-    //
-    D3D12_CPU_DESCRIPTOR_HANDLE handle =
-        m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
-
-    //
     for (uint32_t i = 0; i < CommandContext::FrameCount; ++i)
     {
         ThrowIfFailed(m_swapchain->GetBuffer(
@@ -234,15 +233,10 @@ bool Swapchain::CreateRenderTargetViews(ID3D12Device *device)
         swprintf_s(name, L"Swapchain Back Buffer %u", i);
         m_backBuffers[i]->SetName(name);
 
-        //
         device->CreateRenderTargetView(
             m_backBuffers[i].Get(),
             nullptr,
-            handle);
-
-        m_rtvHandles[i] = handle;
-
-        handle.ptr += m_rtvDescriptorSize;
+            m_rtvHandles[i].Cpu);
     }
 
     return true;
@@ -254,10 +248,5 @@ void Swapchain::ReleaseBackBuffers()
     for (auto &backBuffer : m_backBuffers)
     {
         backBuffer.Reset();
-    }
-
-    for (auto &handle : m_rtvHandles)
-    {
-        handle = {};
     }
 }

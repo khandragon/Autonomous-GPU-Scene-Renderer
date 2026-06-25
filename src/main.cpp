@@ -3,6 +3,7 @@
 #include "renderer/CommandContext.h"
 #include "renderer/Swapchain.h"
 #include "renderer/ResourceBarrier.h"
+#include "renderer/DescriptorAllocator.h"
 
 #include <Windows.h>
 
@@ -117,6 +118,78 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    DescriptorAllocator rtvAllocator;
+
+    if (!rtvAllocator.Initialize(
+            d3d12Device.GetDevice(),
+            D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+            CommandContext::FrameCount,
+            false,
+            L"RTV Descriptor Allocator"))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize RTV descriptor allocator.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
+    DescriptorAllocator dsvAllocator;
+
+    if (!dsvAllocator.Initialize(
+            d3d12Device.GetDevice(),
+            D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+            16,
+            false,
+            L"DSV Descriptor Allocator"))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize DSV descriptor allocator.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
+    DescriptorAllocator cbvSrvUavAllocator;
+
+    if (!cbvSrvUavAllocator.Initialize(
+            d3d12Device.GetDevice(),
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            1024,
+            true,
+            L"CBV SRV UAV Descriptor Allocator"))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize CBV/SRV/UAV descriptor allocator.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
+    DescriptorAllocator samplerAllocator;
+
+    if (!samplerAllocator.Initialize(
+            d3d12Device.GetDevice(),
+            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+            64,
+            true,
+            L"Sampler Descriptor Allocator"))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize sampler descriptor allocator.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
     Swapchain swapchain;
 
     if (!swapchain.Initialize(
@@ -124,6 +197,7 @@ int WINAPI wWinMain(
             d3d12Device.GetFactory(),
             d3d12Device.GetDevice(),
             commandContext.GetGraphicsQueue(),
+            &rtvAllocator,
             window.GetWidth(),
             window.GetHeight()))
     {
@@ -137,6 +211,19 @@ int WINAPI wWinMain(
     }
 
     const RendererCapabilities &caps = d3d12Device.GetCapabilities();
+
+    wchar_t descriptorMessage[256] = {};
+    swprintf_s(
+        descriptorMessage,
+        L"Descriptors allocated: RTV=%u/%u, DSV=%u/%u, CBV/SRV/UAV=%u/%u\n",
+        rtvAllocator.GetAllocatedCount(),
+        rtvAllocator.GetCapacity(),
+        dsvAllocator.GetAllocatedCount(),
+        dsvAllocator.GetCapacity(),
+        cbvSrvUavAllocator.GetAllocatedCount(),
+        cbvSrvUavAllocator.GetCapacity());
+
+    OutputDebugStringW(descriptorMessage);
 
     std::wstring capabilityMessage =
         L"Selected GPU: " + d3d12Device.GetAdapterName() + L"\n\n" +
@@ -265,6 +352,12 @@ int WINAPI wWinMain(
     commandContext.Flush();
 
     swapchain.Shutdown();
+
+    samplerAllocator.Shutdown();
+    cbvSrvUavAllocator.Shutdown();
+    dsvAllocator.Shutdown();
+    rtvAllocator.Shutdown();
+
     commandContext.Shutdown();
     d3d12Device.Shutdown();
     window.Destroy();

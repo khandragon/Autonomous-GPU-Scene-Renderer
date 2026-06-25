@@ -30,6 +30,8 @@ add_executable(AutonomousGpuSceneRenderer WIN32
     src/renderer/RendererCapabilities.h
     src/renderer/CommandContext.h
     src/renderer/CommandContext.cpp
+    src/renderer/DescriptorAllocator.h
+    src/renderer/DescriptorAllocator.cpp
     src/renderer/Swapchain.h
     src/renderer/Swapchain.cpp
 )

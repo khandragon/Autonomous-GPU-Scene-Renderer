@@ -42,6 +42,8 @@ public:
     uint32_t GetCurrentBackBufferIndex() const;
     uint32_t GetWidth() const;
     uint32_t GetHeight() const;
+    D3D12_VIEWPORT GetViewport() const;
+    D3D12_RECT GetScissorRect() const;
 
 private:
     bool CreateSwapchain(

@@ -300,8 +300,25 @@ int WINAPI wWinMain(
             ID3D12GraphicsCommandList *commandList =
                 commandContext.GetCommandList();
 
+            D3D12_VIEWPORT viewport = swapchain.GetViewport();
+            D3D12_RECT scissorRect = swapchain.GetScissorRect();
+
+            commandList->RSSetViewports(1, &viewport);
+            commandList->RSSetScissorRects(1, &scissorRect);
+
             ID3D12Resource *backBuffer =
                 swapchain.GetCurrentBackBuffer();
+
+            if (!commandList || !backBuffer)
+            {
+                MessageBoxW(
+                    nullptr,
+                    L"Invalid command list or back buffer.",
+                    L"Error",
+                    MB_OK | MB_ICONERROR);
+
+                return -1;
+            }
 
             D3D12_RESOURCE_BARRIER presentToRenderTarget =
                 TransitionBarrier(
@@ -320,16 +337,16 @@ int WINAPI wWinMain(
                 FALSE,
                 nullptr);
 
-            const float redColor[] =
+            const float clearColor[] =
                 {
-                    0.8f,
                     0.05f,
-                    0.05f,
+                    0.08f,
+                    0.12f,
                     1.0f};
 
             commandList->ClearRenderTargetView(
                 rtv,
-                redColor,
+                clearColor,
                 0,
                 nullptr);
 

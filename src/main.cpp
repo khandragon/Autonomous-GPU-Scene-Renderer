@@ -1,9 +1,10 @@
 #include "platform/Win32Window.h"
 #include "renderer/D3D12Device.h"
 #include "renderer/CommandContext.h"
-#include "renderer/Swapchain.h"
-#include "renderer/ResourceBarrier.h"
 #include "renderer/DescriptorAllocator.h"
+#include "renderer/Swapchain.h"
+#include "renderer/DepthBuffer.h"
+#include "renderer/ResourceBarrier.h"
 
 #include <Windows.h>
 
@@ -210,6 +211,23 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    DepthBuffer depthBuffer;
+
+    if (!depthBuffer.Initialize(
+            d3d12Device.GetDevice(),
+            &dsvAllocator,
+            window.GetWidth(),
+            window.GetHeight()))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize depth buffer.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
     const RendererCapabilities &caps = d3d12Device.GetCapabilities();
 
     wchar_t descriptorMessage[256] = {};
@@ -287,6 +305,20 @@ int WINAPI wWinMain(
                     return -1;
                 }
 
+                if (!depthBuffer.Resize(
+                        d3d12Device.GetDevice(),
+                        currentWidth,
+                        currentHeight))
+                {
+                    MessageBoxW(
+                        nullptr,
+                        L"Failed to resize depth buffer.",
+                        L"Error",
+                        MB_OK | MB_ICONERROR);
+
+                    return -1;
+                }
+
                 renderer.Resize(currentWidth, currentHeight);
 
                 previousWidth = currentWidth;
@@ -299,12 +331,6 @@ int WINAPI wWinMain(
 
             ID3D12GraphicsCommandList *commandList =
                 commandContext.GetCommandList();
-
-            D3D12_VIEWPORT viewport = swapchain.GetViewport();
-            D3D12_RECT scissorRect = swapchain.GetScissorRect();
-
-            commandList->RSSetViewports(1, &viewport);
-            commandList->RSSetScissorRects(1, &scissorRect);
 
             ID3D12Resource *backBuffer =
                 swapchain.GetCurrentBackBuffer();
@@ -320,6 +346,12 @@ int WINAPI wWinMain(
                 return -1;
             }
 
+            D3D12_VIEWPORT viewport = swapchain.GetViewport();
+            D3D12_RECT scissorRect = swapchain.GetScissorRect();
+
+            commandList->RSSetViewports(1, &viewport);
+            commandList->RSSetScissorRects(1, &scissorRect);
+
             D3D12_RESOURCE_BARRIER presentToRenderTarget =
                 TransitionBarrier(
                     backBuffer,
@@ -331,11 +363,14 @@ int WINAPI wWinMain(
             D3D12_CPU_DESCRIPTOR_HANDLE rtv =
                 swapchain.GetCurrentBackBufferRtv();
 
+            D3D12_CPU_DESCRIPTOR_HANDLE dsv =
+                depthBuffer.GetDsv();
+
             commandList->OMSetRenderTargets(
                 1,
                 &rtv,
                 FALSE,
-                nullptr);
+                &dsv);
 
             const float clearColor[] =
                 {
@@ -347,6 +382,14 @@ int WINAPI wWinMain(
             commandList->ClearRenderTargetView(
                 rtv,
                 clearColor,
+                0,
+                nullptr);
+
+            commandList->ClearDepthStencilView(
+                dsv,
+                D3D12_CLEAR_FLAG_DEPTH,
+                DepthBuffer::ClearDepth,
+                0,
                 0,
                 nullptr);
 
@@ -368,6 +411,7 @@ int WINAPI wWinMain(
 
     commandContext.Flush();
 
+    depthBuffer.Shutdown();
     swapchain.Shutdown();
 
     samplerAllocator.Shutdown();

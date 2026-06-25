@@ -34,6 +34,8 @@ add_executable(AutonomousGpuSceneRenderer WIN32
     src/renderer/DescriptorAllocator.cpp
     src/renderer/Swapchain.h
     src/renderer/Swapchain.cpp
+    src/renderer/DepthBuffer.h
+    src/renderer/DepthBuffer.cpp
 )
 
 target_include_directories(AutonomousGpuSceneRenderer PRIVATE

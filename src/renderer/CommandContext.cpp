@@ -77,83 +77,112 @@ bool CommandContext::Initialize(ID3D12Device *device)
     return true;
 }
 
+// Ensure the GPU finishes all pending work before safely releasing
+//  memory trackers, commands lists, fence synchronizations and hardware queues.
 void CommandContext::Shutdown()
 {
+    // Waits for all currently scheduled GPU work to finish preventing deleting objects that are currently in use
     Flush();
 
+    // checks for CPU side OS event handle exists
     if (m_fenceEvent)
     {
+        // Clsoes the handle to free OS resources and resets the pointer to nullptr
         CloseHandle(m_fenceEvent);
         m_fenceEvent = nullptr;
     }
 
+    // Releases the smart pointer holding the GPU command List and clears the recording state of the grpahics commands
     m_commandList.Reset();
 
+    // Loop through a collections of structures mangaging individual animation frames
     for (FrameContext &frame : m_frameContexts)
     {
+        // Free the ubnderlying memory backing the recorded commands for that frame and reset the synchronization counter to its initial state
         frame.CommandAllocator.Reset();
         frame.FenceValue = 0;
     }
 
+    // Destroy the GPU fence object used to synchonize CPU and GPU timelines and the direct command queue
     m_fence.Reset();
     m_graphicsQueue.Reset();
 
+    // Reset the context tracking integers back to their default starting values
     m_nextFenceValue = 1;
     m_frameIndex = 0;
 }
 
+// To ensure the CPU doesnt overwrite data the GPU is still processing, it retrieves the specific memory storage for the current frame,
+// and resets the command list so new rendering instructions can be recorded.
 void CommandContext::BeginFrame()
 {
+    // Stall the CPU if the GPU is still processing this specific frame from a previous loop to prevent CPU rushing ahead of GPU
     WaitForFrame(m_frameIndex);
 
+    // Retrieve a reference to data structure tracking the current frame resources
     FrameContext &frame = m_frameContexts[m_frameIndex];
 
+    // Clears the memory allocator allocation pool designated for this specific frame to reuse the underlying gpu memory without alllocating new system resources maximizing performance.
     ThrowIfFailed(frame.CommandAllocator->Reset());
 
+    // Error check if the reset fails
     ThrowIfFailed(m_commandList->Reset(
         frame.CommandAllocator.Get(),
         nullptr));
 }
 
+// Stops recording Graphics commands, bundling them into an array and hands them over to the hardware graphics queue
 void CommandContext::EndFrame()
 {
+    // Catch any errors from trying to indicate to the CPU that it has finished recording rendering commands for this frame
+    // Validates and compiles the command list into a format the GPU can understand
     ThrowIfFailed(m_commandList->Close());
 
-    ID3D12CommandList *commandLists[] =
-        {
-            m_commandList.Get()};
+    // Creates an array containing the raw pointer to the recorded DirectX 12 command list, extracting the underlying pointer from the smart pointer container
+    ID3D12CommandList *commandLists[] = {m_commandList.Get()};
 
+    // sends array of compiled command lists to the GPUs hardware execution queuem then count how many command lists are being submitted and safely converts that size to an UINT for the DirectX 12 API
     m_graphicsQueue->ExecuteCommandLists(
         static_cast<UINT>(std::size(commandLists)),
         commandLists);
 
+    // Inserts a fence marker into the GPU queue immediately after the submitted command
     SignalFrame(m_frameIndex);
 
+    // increments the frame index counter so the application moves to the next fram buffer slot with modulo ensuring it loops back to 0 once it reaches mac number of allowed frames.
     m_frameIndex = (m_frameIndex + 1) % FrameCount;
 }
 
+// Assigns a new tracking number to the GPU timeline tells the gPU to alert the CPU when it reachs that number and forces the CPU to stall until that alert happens and resets the frame tracking counters
 void CommandContext::Flush()
 {
+    // Saftey check that both HPU queue and synchonziation fence exits
     if (!m_graphicsQueue || !m_fence)
     {
         return;
     }
 
+    // generate a unque increasing id number for this synch request
     const uint64_t fenceValue = m_nextFenceValue++;
 
+    // tell GPU queue to update the hardware fence to fencevalue after it finishes processing all commands currently sitting in its queue
     if (FAILED(m_graphicsQueue->Signal(m_fence.Get(), fenceValue)))
     {
         return;
     }
 
+    // aks the gpu for the highest tracking number it has actually completed so far and skips the spu stall entirely if the gpu was fast enough
     if (m_fence->GetCompletedValue() < fenceValue)
     {
+        // bind the tracking number to an OS event handle
         if (SUCCEEDED(m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent)))
         {
+            // halt CPU thread until GPU triggers OS event
             WaitForSingleObject(m_fenceEvent, INFINITE);
         }
     }
 
+    // Loop through all buffered frame structures and reset synchonization values to 0
     for (FrameContext &frame : m_frameContexts)
     {
         frame.FenceValue = 0;
@@ -175,15 +204,19 @@ uint32_t CommandContext::GetFrameIndex() const
     return m_frameIndex;
 }
 
+// Checks that tracking number halting the CPU only if the GPU is lagging behind and hasn't finished processing that specific frame yet
 void CommandContext::WaitForFrame(uint32_t frameIndex)
 {
+    // Retrieve frame data
     FrameContext &frame = m_frameContexts[frameIndex];
 
+    // Checks if frame has a valid tracking number
     if (frame.FenceValue == 0)
     {
         return;
     }
 
+    // Quieries the GPU to find out the highest tracking number it has finished processing and if lower than this frames value it means the GPU is working on it
     if (m_fence->GetCompletedValue() < frame.FenceValue)
     {
         ThrowIfFailed(m_fence->SetEventOnCompletion(
@@ -193,16 +226,22 @@ void CommandContext::WaitForFrame(uint32_t frameIndex)
         WaitForSingleObject(m_fenceEvent, INFINITE);
     }
 
+    // Resets the frame tracking value to 0, signaling that the frames memory is now safe for the CPU to overwrite
     frame.FenceValue = 0;
 }
 
+// Tags a specific frame index with a unique tracking number right after submitting its command to the GPU
 void CommandContext::SignalFrame(uint32_t frameIndex)
 {
+    // Create a unique, higher tracking ID for the frame that was just submitted and increment the global counter for next frame
     const uint64_t fenceValue = m_nextFenceValue++;
 
+    // Insert signal instruction into GPU hardware queue
+    // GPU will update its hardware fence object to match fenceValue only after it finishes rendering all the commands submitted right before
     ThrowIfFailed(m_graphicsQueue->Signal(
         m_fence.Get(),
         fenceValue));
 
+    // Saves this specific tracking number inside the frames structure on the CPU side
     m_frameContexts[frameIndex].FenceValue = fenceValue;
 }

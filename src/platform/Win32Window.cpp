@@ -79,6 +79,12 @@ void Win32Window::PollEvents()
 
     while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
     {
+        if (message.message == WM_QUIT)
+        {
+            m_shouldClose = true;
+            break;
+        }
+
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
@@ -169,12 +175,14 @@ LRESULT Win32Window::HandleMessage(
 
     case WM_CLOSE:
     {
+        OutputDebugStringW(L"WM_CLOSE received\n");
         DestroyWindow(hwnd);
         return 0;
     }
 
     case WM_DESTROY:
     {
+        OutputDebugStringW(L"WM_DESTROY received\n");
         m_shouldClose = true;
         PostQuitMessage(0);
         return 0;
@@ -182,6 +190,8 @@ LRESULT Win32Window::HandleMessage(
 
     case WM_NCDESTROY:
     {
+        OutputDebugStringW(L"WM_NCDESTROY received\n");
+
         if (m_hwnd == hwnd)
         {
             m_hwnd = nullptr;

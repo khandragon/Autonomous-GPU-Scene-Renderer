@@ -1,11 +1,14 @@
 #include "platform/Win32Window.h"
 #include "renderer/D3D12Device.h"
 #include "renderer/CommandContext.h"
+#include "renderer/Swapchain.h"
+#include "renderer/ResourceBarrier.h"
 
 #include <Windows.h>
 
 #include <chrono>
 #include <cstdint>
+#include <string>
 
 // FrameTimer is a simple utility class to measure the time between frames.
 class FrameTimer
@@ -114,6 +117,25 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    Swapchain swapchain;
+
+    if (!swapchain.Initialize(
+            window.GetHwnd(),
+            d3d12Device.GetFactory(),
+            d3d12Device.GetDevice(),
+            commandContext.GetGraphicsQueue(),
+            window.GetWidth(),
+            window.GetHeight()))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize swapchain.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
     const RendererCapabilities &caps = d3d12Device.GetCapabilities();
 
     std::wstring capabilityMessage =
@@ -123,11 +145,8 @@ int WINAPI wWinMain(
         L"Mesh Shaders: " + std::wstring(caps.SupportsMeshShaders ? L"Yes" : L"No") + L"\n" +
         L"Work Graphs: " + std::wstring(caps.SupportsWorkGraphs ? L"Yes" : L"No");
 
-    MessageBoxW(
-        window.GetHwnd(),
-        capabilityMessage.c_str(),
-        L"D3D12 Capabilities",
-        MB_OK);
+    OutputDebugStringW(capabilityMessage.c_str());
+    OutputDebugStringW(L"\n");
 
     StubRenderer renderer;
     renderer.Initialize(
@@ -144,6 +163,11 @@ int WINAPI wWinMain(
     {
         window.PollEvents();
 
+        if (!window.IsRunning())
+        {
+            break;
+        }
+
         const float dt = timer.Tick();
 
         if (!window.IsWindowMinimized())
@@ -153,6 +177,29 @@ int WINAPI wWinMain(
 
             if (currentWidth != previousWidth || currentHeight != previousHeight)
             {
+                if (currentWidth == 0 || currentHeight == 0)
+                {
+                    previousWidth = currentWidth;
+                    previousHeight = currentHeight;
+                    continue;
+                }
+
+                commandContext.Flush();
+
+                if (!swapchain.Resize(
+                        d3d12Device.GetDevice(),
+                        currentWidth,
+                        currentHeight))
+                {
+                    MessageBoxW(
+                        nullptr,
+                        L"Failed to resize swapchain.",
+                        L"Error",
+                        MB_OK | MB_ICONERROR);
+
+                    return -1;
+                }
+
                 renderer.Resize(currentWidth, currentHeight);
 
                 previousWidth = currentWidth;
@@ -163,14 +210,62 @@ int WINAPI wWinMain(
 
             commandContext.BeginFrame();
 
-            // Empty command list for now.
+            ID3D12GraphicsCommandList *commandList =
+                commandContext.GetCommandList();
+
+            ID3D12Resource *backBuffer =
+                swapchain.GetCurrentBackBuffer();
+
+            D3D12_RESOURCE_BARRIER presentToRenderTarget =
+                TransitionBarrier(
+                    backBuffer,
+                    D3D12_RESOURCE_STATE_PRESENT,
+                    D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+            commandList->ResourceBarrier(1, &presentToRenderTarget);
+
+            D3D12_CPU_DESCRIPTOR_HANDLE rtv =
+                swapchain.GetCurrentBackBufferRtv();
+
+            commandList->OMSetRenderTargets(
+                1,
+                &rtv,
+                FALSE,
+                nullptr);
+
+            const float redColor[] =
+                {
+                    0.8f,
+                    0.05f,
+                    0.05f,
+                    1.0f};
+
+            commandList->ClearRenderTargetView(
+                rtv,
+                redColor,
+                0,
+                nullptr);
+
+            D3D12_RESOURCE_BARRIER renderTargetToPresent =
+                TransitionBarrier(
+                    backBuffer,
+                    D3D12_RESOURCE_STATE_RENDER_TARGET,
+                    D3D12_RESOURCE_STATE_PRESENT);
+
+            commandList->ResourceBarrier(1, &renderTargetToPresent);
+
+            commandContext.ExecuteCommandList();
+
+            swapchain.Present(true);
 
             commandContext.EndFrame();
-
-            renderer.Render();
         }
     }
 
+    commandContext.Flush();
+
+    swapchain.Shutdown();
+    commandContext.Shutdown();
     d3d12Device.Shutdown();
     window.Destroy();
 

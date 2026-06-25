@@ -30,6 +30,8 @@ add_executable(AutonomousGpuSceneRenderer WIN32
     src/renderer/RendererCapabilities.h
     src/renderer/CommandContext.h
     src/renderer/CommandContext.cpp
+    src/renderer/Swapchain.h
+    src/renderer/Swapchain.cpp
 )
 
 target_include_directories(AutonomousGpuSceneRenderer PRIVATE

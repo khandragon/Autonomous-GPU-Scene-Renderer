@@ -24,6 +24,7 @@ public:
     void Shutdown();
 
     void BeginFrame();
+    void ExecuteCommandList();
     void EndFrame();
 
     void Flush();

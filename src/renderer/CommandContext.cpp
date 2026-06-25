@@ -131,21 +131,24 @@ void CommandContext::BeginFrame()
         nullptr));
 }
 
+// Close and execute the command list
+void CommandContext::ExecuteCommandList()
+{
+    // close list, throw error if fails
+    ThrowIfFailed(m_commandList->Close());
+
+    // Create a list from all the commands
+    ID3D12CommandList *commandLists[] =
+        {
+            m_commandList.Get()};
+
+    // Execute 1 command list, followed by the list
+    m_graphicsQueue->ExecuteCommandLists(1, commandLists);
+}
+
 // Stops recording Graphics commands, bundling them into an array and hands them over to the hardware graphics queue
 void CommandContext::EndFrame()
 {
-    // Catch any errors from trying to indicate to the CPU that it has finished recording rendering commands for this frame
-    // Validates and compiles the command list into a format the GPU can understand
-    ThrowIfFailed(m_commandList->Close());
-
-    // Creates an array containing the raw pointer to the recorded DirectX 12 command list, extracting the underlying pointer from the smart pointer container
-    ID3D12CommandList *commandLists[] = {m_commandList.Get()};
-
-    // sends array of compiled command lists to the GPUs hardware execution queuem then count how many command lists are being submitted and safely converts that size to an UINT for the DirectX 12 API
-    m_graphicsQueue->ExecuteCommandLists(
-        static_cast<UINT>(std::size(commandLists)),
-        commandLists);
-
     // Inserts a fence marker into the GPU queue immediately after the submitted command
     SignalFrame(m_frameIndex);
 
@@ -189,16 +192,19 @@ void CommandContext::Flush()
     }
 }
 
+// Get the graphics queue
 ID3D12CommandQueue *CommandContext::GetGraphicsQueue() const
 {
     return m_graphicsQueue.Get();
 }
 
+// Get the command list
 ID3D12GraphicsCommandList *CommandContext::GetCommandList() const
 {
     return m_commandList.Get();
 }
 
+// Get frame index
 uint32_t CommandContext::GetFrameIndex() const
 {
     return m_frameIndex;

@@ -5,6 +5,8 @@
 #include "renderer/Swapchain.h"
 #include "renderer/DepthBuffer.h"
 #include "renderer/ResourceBarrier.h"
+#include "renderer/ShaderCompiler.h"
+#include "renderer/GraphicsPipeline.h"
 
 #include <Windows.h>
 
@@ -228,6 +230,34 @@ int WINAPI wWinMain(
         return -1;
     }
 
+    ShaderCompiler shaderCompiler;
+
+    if (!shaderCompiler.Initialize())
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize shader compiler.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
+    GraphicsPipeline graphicsPipeline;
+
+    if (!graphicsPipeline.Initialize(
+            d3d12Device.GetDevice(),
+            &shaderCompiler))
+    {
+        MessageBoxW(
+            nullptr,
+            L"Failed to initialize graphics pipeline.",
+            L"Error",
+            MB_OK | MB_ICONERROR);
+
+        return -1;
+    }
+
     const RendererCapabilities &caps = d3d12Device.GetCapabilities();
 
     wchar_t descriptorMessage[256] = {};
@@ -332,6 +362,12 @@ int WINAPI wWinMain(
             ID3D12GraphicsCommandList *commandList =
                 commandContext.GetCommandList();
 
+            commandList->SetGraphicsRootSignature(
+                graphicsPipeline.GetRootSignature());
+
+            commandList->SetPipelineState(
+                graphicsPipeline.GetPipelineState());
+
             ID3D12Resource *backBuffer =
                 swapchain.GetCurrentBackBuffer();
 
@@ -411,10 +447,13 @@ int WINAPI wWinMain(
 
     commandContext.Flush();
 
+    graphicsPipeline.Shutdown();
+    shaderCompiler.Shutdown();
+
     depthBuffer.Shutdown();
     swapchain.Shutdown();
 
-    samplerAllocator.Shutdown();
+    samplerAllocator.Shutdown(); 
     cbvSrvUavAllocator.Shutdown();
     dsvAllocator.Shutdown();
     rtvAllocator.Shutdown();

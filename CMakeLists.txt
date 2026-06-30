@@ -61,8 +61,8 @@ add_executable(AutonomousGpuSceneRenderer WIN32
 
     src/renderer/ShaderCompiler.h
     src/renderer/ShaderCompiler.cpp
-    src/renderer/GraphicsPipeline.h
-    src/renderer/GraphicsPipeline.cpp
+    src/renderer/PipelineState.h
+    src/renderer/PipelineState.cpp
     src/shaders/Forward.hlsl
 )
 

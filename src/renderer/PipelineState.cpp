@@ -1,4 +1,4 @@
-#include "renderer/GraphicsPipeline.h"
+#include "renderer/PipelineState.h"
 
 #include <stdexcept>
 
@@ -23,7 +23,7 @@ namespace
 }
 
 // Main startup function, it takes virtual graphics card handle (device) and your compiler tool, then builds the Root Signature and the Pipeline State.
-bool GraphicsPipeline::Initialize(
+bool PipelineState::Initialize(
     ID3D12Device *device,
     ShaderCompiler *shaderCompiler)
 {
@@ -54,25 +54,25 @@ bool GraphicsPipeline::Initialize(
 }
 
 // Clears smart pointers
-void GraphicsPipeline::Shutdown()
+void PipelineState::Shutdown()
 {
     m_pipelineState.Reset();
     m_rootSignature.Reset();
 }
 
-ID3D12RootSignature *GraphicsPipeline::GetRootSignature() const
+ID3D12RootSignature *PipelineState::GetRootSignature() const
 {
     return m_rootSignature.Get();
 }
 
-ID3D12PipelineState *GraphicsPipeline::GetPipelineState() const
+ID3D12PipelineState *PipelineState::GetPipelineState() const
 {
     return m_pipelineState.Get();
 }
 
 // A Root Signature is like a function signature in C++, but for your shaders.
 // It tells the GPU exactly what variables (constant buffers, textures) the shader expects to find in memory.
-bool GraphicsPipeline::CreateRootSignature(ID3D12Device *device)
+bool PipelineState::CreateRootSignature(ID3D12Device *device)
 {
     // Prepares an array of 2 slots because Forward.hlsl file uses exactly two constant buffers (b0 and b1).
     D3D12_ROOT_PARAMETER rootParameters[2] = {};
@@ -132,7 +132,7 @@ bool GraphicsPipeline::CreateRootSignature(ID3D12Device *device)
     return true;
 }
 
-bool GraphicsPipeline::CreatePipelineState(
+bool PipelineState::CreatePipelineState(
     ID3D12Device *device,
     ShaderCompiler *shaderCompiler)
 {

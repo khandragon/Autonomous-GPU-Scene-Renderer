@@ -9,7 +9,7 @@
 
 #include <d3d12.h>
 
-class GraphicsPipeline
+class PipelineState
 {
 public:
     bool Initialize(

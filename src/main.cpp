@@ -6,7 +6,7 @@
 #include "renderer/DepthBuffer.h"
 #include "renderer/ResourceBarrier.h"
 #include "renderer/ShaderCompiler.h"
-#include "renderer/GraphicsPipeline.h"
+#include "renderer/PipelineState.h"
 
 #include <Windows.h>
 
@@ -243,9 +243,9 @@ int WINAPI wWinMain(
         return -1;
     }
 
-    GraphicsPipeline graphicsPipeline;
+    PipelineState PipelineState;
 
-    if (!graphicsPipeline.Initialize(
+    if (!PipelineState.Initialize(
             d3d12Device.GetDevice(),
             &shaderCompiler))
     {
@@ -363,10 +363,10 @@ int WINAPI wWinMain(
                 commandContext.GetCommandList();
 
             commandList->SetGraphicsRootSignature(
-                graphicsPipeline.GetRootSignature());
+                PipelineState.GetRootSignature());
 
             commandList->SetPipelineState(
-                graphicsPipeline.GetPipelineState());
+                PipelineState.GetPipelineState());
 
             ID3D12Resource *backBuffer =
                 swapchain.GetCurrentBackBuffer();
@@ -447,13 +447,13 @@ int WINAPI wWinMain(
 
     commandContext.Flush();
 
-    graphicsPipeline.Shutdown();
+    PipelineState.Shutdown();
     shaderCompiler.Shutdown();
 
     depthBuffer.Shutdown();
     swapchain.Shutdown();
 
-    samplerAllocator.Shutdown(); 
+    samplerAllocator.Shutdown();
     cbvSrvUavAllocator.Shutdown();
     dsvAllocator.Shutdown();
     rtvAllocator.Shutdown();

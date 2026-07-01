@@ -64,6 +64,11 @@ add_executable(AutonomousGpuSceneRenderer WIN32
     src/renderer/PipelineState.h
     src/renderer/PipelineState.cpp
     src/shaders/Forward.hlsl
+
+    src/renderer/GpuBuffer.h
+    src/renderer/GpuBuffer.cpp
+    src/renderer/UploadBuffer.h
+    src/renderer/UploadBuffer.cpp
 )
 
 set_source_files_properties(src/shaders/Forward.hlsl PROPERTIES
